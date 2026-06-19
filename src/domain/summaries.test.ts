@@ -22,16 +22,21 @@ const makeTx = (
   amount: number,
   accountId: number,
   categoryId = 1,
-): Transaction => ({
-  id,
-  type,
-  amount,
-  date: new Date(),
-  categoryId,
-  accountId,
-  isRecurring: false,
-  createdAt: new Date(),
-})
+): Transaction => {
+  const date = new Date()
+  return {
+    id,
+    type,
+    amount,
+    date,
+    categoryId,
+    accountId,
+    billingYear: date.getFullYear(),
+    billingMonth: date.getMonth() + 1,
+    isRecurring: false,
+    createdAt: new Date(),
+  }
+}
 
 describe('calcAccountBalance', () => {
   it('returns initialBalance when no transactions', () => {

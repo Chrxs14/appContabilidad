@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { db } from './db'
+import { getBillingPeriod } from '@/domain/billing-cycle'
 
 const BACKUP_VERSION = 1
 
@@ -46,6 +47,8 @@ const transactionSchema = z.object({
   creditCardId: z.number().optional(),
   note: z.string().optional(),
   isRecurring: z.boolean(),
+  billingYear: z.number().optional(),
+  billingMonth: z.number().optional(),
   createdAt: z.coerce.date(),
 })
 
@@ -158,7 +161,22 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
       await db.accounts.bulkPut(data.accounts)
       await db.creditCards.bulkPut(data.creditCards)
       await db.categories.bulkPut(data.categories)
-      await db.transactions.bulkPut(data.transactions)
+
+      const cardMap = new Map(data.creditCards.map((c) => [c.id!, c]))
+      const transactions = data.transactions.map((tx) => {
+        const billingYear = tx.billingYear ?? (
+          tx.creditCardId && cardMap.has(tx.creditCardId)
+            ? getBillingPeriod(tx.date, cardMap.get(tx.creditCardId)!.cutDay).billingYear
+            : tx.date.getFullYear()
+        )
+        const billingMonth = tx.billingMonth ?? (
+          tx.creditCardId && cardMap.has(tx.creditCardId)
+            ? getBillingPeriod(tx.date, cardMap.get(tx.creditCardId)!.cutDay).billingMonth
+            : tx.date.getMonth() + 1
+        )
+        return { ...tx, billingYear, billingMonth }
+      })
+      await db.transactions.bulkPut(transactions)
       await db.budgets.bulkPut(data.budgets)
       await db.debts.bulkPut(data.debts)
       await db.debtPayments.bulkPut(data.debtPayments)
