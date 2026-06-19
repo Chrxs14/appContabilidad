@@ -174,6 +174,10 @@ export function Component() {
             <div className="space-y-1">
               <Label>Tipo</Label>
               <Select
+                items={[
+                  { value: 'income', label: 'Ingreso' },
+                  { value: 'expense', label: 'Egreso' },
+                ]}
                 onValueChange={(v: string | null) => { if (v) setValue('type', v as CategoryType) }}
                 defaultValue={activeType}
               >

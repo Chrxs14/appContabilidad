@@ -196,6 +196,7 @@ export function AccountsPanel() {
             <div className="space-y-1">
               <Label>Tipo</Label>
               <Select
+                items={ACCOUNT_TYPES}
                 onValueChange={(v: string | null) => { if (v) setValue('type', v as AccountType) }}
                 defaultValue={editing?.account.type ?? 'bank'}
               >

@@ -73,6 +73,10 @@ export function FilterBar({ filters, onChange }: Props) {
 
         {/* Category */}
         <Select
+          items={[
+            { value: '', label: 'Todas las categorías' },
+            ...(visibleCategories?.map((c) => ({ value: String(c.id), label: c.name })) ?? []),
+          ]}
           value={filters.categoryId?.toString() ?? ''}
           onValueChange={(v: string | null) =>
             onChange({ ...filters, categoryId: v ? Number(v) : undefined })
@@ -99,6 +103,11 @@ export function FilterBar({ filters, onChange }: Props) {
 
         {/* Account / Card */}
         <Select
+          items={[
+            { value: '', label: 'Todas las cuentas' },
+            ...(accounts?.map((a) => ({ value: `account:${a.id}`, label: a.name })) ?? []),
+            ...(cards?.map((c) => ({ value: `card:${c.id}`, label: `${c.name} (tarjeta)` })) ?? []),
+          ]}
           value={filters.source ?? ''}
           onValueChange={(v: string | null) =>
             onChange({ ...filters, source: v || undefined })

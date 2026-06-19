@@ -172,6 +172,7 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
       <div className="space-y-1">
         <Label>Categoría</Label>
         <Select
+          items={categories?.map((c) => ({ value: String(c.id), label: c.name })) ?? []}
           onValueChange={(v: string | null) => setValue('categoryId', Number(v ?? 0))}
           defaultValue={editing?.categoryId?.toString()}
         >
@@ -195,6 +196,12 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
       <div className="space-y-1">
         <Label>{destinationLabel}</Label>
         <Select
+          items={[
+            ...(accounts?.map((a) => ({ value: `account:${a.id}`, label: a.name })) ?? []),
+            ...(type === 'expense'
+              ? (creditCards?.map((c) => ({ value: `card:${c.id}`, label: `${c.name} (tarjeta)` })) ?? [])
+              : []),
+          ]}
           onValueChange={(v: string | null) => {
             if (!v) return
             const [kind, id] = v.split(':')

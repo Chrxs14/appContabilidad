@@ -275,6 +275,10 @@ export function Component() {
             <div className="space-y-1">
               <Label>Tipo</Label>
               <Select
+                items={[
+                  { value: 'loan', label: 'Préstamo' },
+                  { value: 'credit_card', label: 'Tarjeta de crédito' },
+                ]}
                 onValueChange={(v: string | null) => { if (v) debtForm.setValue('type', v as Debt['type']) }}
                 defaultValue={editingDebt?.type ?? 'loan'}
               >

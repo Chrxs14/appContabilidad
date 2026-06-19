@@ -272,6 +272,7 @@ export function Component() {
               <div className="space-y-1">
                 <Label>Categoría de egreso</Label>
                 <Select
+                  items={availableCategories?.map((c) => ({ value: String(c.id), label: c.name })) ?? []}
                   onValueChange={(v: string | null) => {
                     if (v) setValue('categoryId', Number(v))
                   }}
