@@ -57,10 +57,10 @@ export function UpcomingWidget() {
     if (consolidated.totalBalance > 0) {
       result.push({
         key: 'debts-total',
-        label: 'Deudas — mínimo mensual',
+        label: 'Deudas — cuota mensual',
         sub: `${(debts ?? []).length} deuda${(debts ?? []).length !== 1 ? 's' : ''} · saldo ${formatAmount(consolidated.totalBalance)}`,
         daysUntil: 31,
-        amount: consolidated.totalMinimumPayment,
+        amount: consolidated.totalInstallmentAmount,
         amountLabel: 'mín/mes',
       })
     }

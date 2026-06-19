@@ -9,7 +9,7 @@ export interface DebtSummary {
 
 export interface ConsolidatedDebt {
   totalBalance: number
-  totalMinimumPayment: number
+  totalInstallmentAmount: number
   totalMonthlyInterest: number
   items: DebtSummary[]
 }
@@ -61,12 +61,12 @@ export function calcDebtSummary(debt: Debt): DebtSummary {
   const monthsToPayoff = calcMonthsToPayoff(
     debt.currentBalance,
     debt.annualRate,
-    debt.minimumPayment,
+    debt.installmentAmount,
   )
   const totalInterestRemaining = calcTotalInterestRemaining(
     debt.currentBalance,
     debt.annualRate,
-    debt.minimumPayment,
+    debt.installmentAmount,
   )
   return { debt, monthlyInterest, monthsToPayoff, totalInterestRemaining }
 }
@@ -76,7 +76,7 @@ export function calcConsolidatedDebt(debts: Debt[]): ConsolidatedDebt {
   const items = debts.map(calcDebtSummary)
   return {
     totalBalance: debts.reduce((s, d) => s + d.currentBalance, 0),
-    totalMinimumPayment: debts.reduce((s, d) => s + d.minimumPayment, 0),
+    totalInstallmentAmount: debts.reduce((s, d) => s + d.installmentAmount, 0),
     totalMonthlyInterest: items.reduce((s, i) => s + i.monthlyInterest, 0),
     items,
   }
@@ -102,7 +102,7 @@ export function simulatePayoff(
   // Work with mutable copies
   const balances = debts.map((d) => d.currentBalance)
   const rates = debts.map((d) => d.annualRate / 100 / 12)
-  const minimums = debts.map((d) => d.minimumPayment)
+  const minimums = debts.map((d) => d.installmentAmount)
   const active = debts.map(() => true)
 
   const payoffOrder: { debtId: number; name: string; monthPaidOff: number }[] = []

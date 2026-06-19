@@ -21,14 +21,14 @@ function yearsMonths(months: number): string {
 export function PayoffSimulator({ debts }: Props) {
   const { formatAmount } = useUIStore()
   const consolidated = calcConsolidatedDebt(debts)
-  const [budget, setBudget] = useState(consolidated.totalMinimumPayment)
+  const [budget, setBudget] = useState(consolidated.totalInstallmentAmount)
 
-  const isValid = budget >= consolidated.totalMinimumPayment && debts.length > 0
+  const isValid = budget >= consolidated.totalInstallmentAmount && debts.length > 0
 
   const snowball = isValid ? simulatePayoff(debts, budget, 'snowball') : null
   const avalanche = isValid ? simulatePayoff(debts, budget, 'avalanche') : null
 
-  const extra = budget - consolidated.totalMinimumPayment
+  const extra = budget - consolidated.totalInstallmentAmount
 
   return (
     <div className="rounded-lg border p-4 space-y-4">
@@ -42,13 +42,13 @@ export function PayoffSimulator({ debts }: Props) {
           id="sim-budget"
           type="number"
           step="0.01"
-          min={consolidated.totalMinimumPayment}
+          min={consolidated.totalInstallmentAmount}
           value={budget}
           onChange={(e) => setBudget(Number(e.target.value))}
           className="max-w-[200px]"
         />
         <p className="text-xs text-muted-foreground">
-          Mínimo requerido: {formatAmount(consolidated.totalMinimumPayment)}
+          Mínimo requerido: {formatAmount(consolidated.totalInstallmentAmount)}
           {extra > 0 && (
             <span className="ml-2 text-green-600 dark:text-green-400">
               (+{formatAmount(extra)} extra)
@@ -57,7 +57,7 @@ export function PayoffSimulator({ debts }: Props) {
         </p>
         {!isValid && (
           <p className="text-xs text-destructive">
-            El presupuesto debe ser al menos {formatAmount(consolidated.totalMinimumPayment)} para cubrir los pagos mínimos.
+            El presupuesto debe ser al menos {formatAmount(consolidated.totalInstallmentAmount)} para cubrir los pagos mínimos.
           </p>
         )}
       </div>

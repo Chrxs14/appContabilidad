@@ -13,7 +13,7 @@ const makeDebt = (
   id: number,
   balance: number,
   annualRate: number,
-  minimumPayment: number,
+  installmentAmount: number,
   name = `Debt ${id}`,
 ): Debt => ({
   id,
@@ -21,7 +21,8 @@ const makeDebt = (
   type: 'loan',
   currentBalance: balance,
   annualRate,
-  minimumPayment,
+  installmentAmount,
+  termMonths: 0,
   createdAt: new Date(),
 })
 
@@ -103,7 +104,7 @@ describe('calcConsolidatedDebt', () => {
   it('returns zeros for empty list', () => {
     const result = calcConsolidatedDebt([])
     expect(result.totalBalance).toBe(0)
-    expect(result.totalMinimumPayment).toBe(0)
+    expect(result.totalInstallmentAmount).toBe(0)
     expect(result.totalMonthlyInterest).toBe(0)
     expect(result.items).toHaveLength(0)
   })
@@ -112,7 +113,7 @@ describe('calcConsolidatedDebt', () => {
     const debts = [makeDebt(1, 5000, 12, 200), makeDebt(2, 3000, 24, 150)]
     const result = calcConsolidatedDebt(debts)
     expect(result.totalBalance).toBe(8000)
-    expect(result.totalMinimumPayment).toBe(350)
+    expect(result.totalInstallmentAmount).toBe(350)
     expect(result.totalMonthlyInterest).toBeCloseTo(5000 * 0.01 + 3000 * 0.02)
   })
 })

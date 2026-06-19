@@ -22,7 +22,7 @@ class AppDB extends Dexie {
   constructor() {
     super('AppContabilidad')
 
-    // v1 — initial schema (name not indexed, kept for upgrade path)
+    // v1 — initial schema
     this.version(1).stores({
       accounts:     '++id, type, isDefault',
       creditCards:  '++id, cutDay',
@@ -41,7 +41,7 @@ class AppDB extends Dexie {
       debts:       '++id, name, type, creditCardId',
     })
 
-    // v3 — add billingYear+billingMonth compound index; backfill existing rows
+    // v3 — add billingYear+billingMonth compound index on transactions; backfill existing rows
     this.version(3).stores({
       transactions: '++id, type, date, categoryId, accountId, creditCardId, [billingYear+billingMonth]',
     }).upgrade(async (trans) => {
@@ -59,6 +59,19 @@ class AppDB extends Dexie {
 
         tx['billingYear'] = billingYear
         tx['billingMonth'] = billingMonth
+      })
+    })
+
+    // v4 — rename minimumPayment → installmentAmount on debts; default termMonths = 0
+    this.version(4).upgrade(async (trans) => {
+      await trans.table('debts').toCollection().modify((debt: Record<string, unknown>) => {
+        if (debt['minimumPayment'] !== undefined && debt['installmentAmount'] === undefined) {
+          debt['installmentAmount'] = debt['minimumPayment']
+          delete debt['minimumPayment']
+        }
+        if (debt['termMonths'] === undefined || debt['termMonths'] === null) {
+          debt['termMonths'] = 0
+        }
       })
     })
   }

@@ -64,9 +64,10 @@ export interface Debt {
   type: DebtType
   currentBalance: number
   annualRate: number
-  minimumPayment: number
-  termMonths?: number
-  creditCardId?: number   // optional link to a CreditCard record
+  installmentAmount: number  // monthly installment / cuota (was minimumPayment)
+  termMonths: number         // 0=revolving, 3|6|9|12|18|24|30|36
+  creditCardId?: number
+  lenderName?: string        // name of bank/entity when not linked to a card
   createdAt: Date
 }
 

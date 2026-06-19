@@ -67,9 +67,11 @@ const debtSchema = z.object({
   type: z.enum(['credit_card', 'loan']),
   currentBalance: z.number().min(0),
   annualRate: z.number().min(0),
-  minimumPayment: z.number().min(0),
+  installmentAmount: z.number().min(0).optional(),
+  minimumPayment: z.number().min(0).optional(),   // legacy field from old backups
   termMonths: z.number().optional(),
   creditCardId: z.number().optional(),
+  lenderName: z.string().optional(),
   createdAt: z.coerce.date(),
 })
 
@@ -178,7 +180,14 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
       })
       await db.transactions.bulkPut(transactions)
       await db.budgets.bulkPut(data.budgets)
-      await db.debts.bulkPut(data.debts)
+
+      const debts = data.debts.map((d) => ({
+        ...d,
+        installmentAmount: d.installmentAmount ?? d.minimumPayment ?? 0,
+        termMonths: d.termMonths ?? 0,
+        minimumPayment: undefined,
+      }))
+      await db.debts.bulkPut(debts as Parameters<typeof db.debts.bulkPut>[0])
       await db.debtPayments.bulkPut(data.debtPayments)
     },
   )

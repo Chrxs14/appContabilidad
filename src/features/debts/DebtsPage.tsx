@@ -11,7 +11,6 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Textarea } from '@/components/ui/textarea'
-import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import {
@@ -35,16 +34,36 @@ import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
 import { PayoffSimulator } from './PayoffSimulator'
 
+// ─── Constants ─────────────────────────────────────────────────────────────────
+
+const TERM_OPTIONS = [
+  { value: '0',  label: 'Sin plazo fijo' },
+  { value: '3',  label: '3 cuotas' },
+  { value: '6',  label: '6 cuotas' },
+  { value: '9',  label: '9 cuotas' },
+  { value: '12', label: '12 cuotas' },
+  { value: '18', label: '18 cuotas' },
+  { value: '24', label: '24 cuotas' },
+  { value: '30', label: '30 cuotas' },
+  { value: '36', label: '36 cuotas' },
+]
+
 // ─── Schemas ───────────────────────────────────────────────────────────────────
 
-const debtSchema = z.object({
-  name: z.string().min(1, 'El nombre es requerido'),
-  type: z.enum(['credit_card', 'loan']),
-  currentBalance: z.number().nonnegative({ message: 'El saldo no puede ser negativo' }),
-  annualRate: z.number().nonnegative({ message: 'La tasa no puede ser negativa' }),
-  minimumPayment: z.number().positive({ message: 'El pago mínimo debe ser mayor a 0' }),
-  termMonths: z.number().positive().optional(),
-})
+const debtSchema = z
+  .object({
+    name: z.string().min(1, 'La descripción es requerida'),
+    origin: z.string().min(1, 'Selecciona el origen'),
+    lenderName: z.string().optional(),
+    currentBalance: z.number().nonnegative({ message: 'El saldo no puede ser negativo' }),
+    annualRate: z.number().nonnegative({ message: 'La tasa no puede ser negativa' }),
+    installmentAmount: z.number().positive({ message: 'La cuota debe ser mayor a 0' }),
+    termMonths: z.number().min(0),
+  })
+  .refine(
+    (d) => d.origin !== 'other' || (d.lenderName?.trim() ?? '').length > 0,
+    { message: 'Ingresa el nombre de la entidad', path: ['lenderName'] },
+  )
 
 const paymentSchema = z.object({
   amount: z.number().positive({ message: 'El monto debe ser mayor a 0' }),
@@ -61,12 +80,8 @@ function toDateInput(d: Date) {
   return d.toISOString().slice(0, 10)
 }
 
-function DebtTypeBadge({ type }: { type: Debt['type'] }) {
-  return (
-    <Badge variant="outline" className="text-[10px]">
-      {type === 'credit_card' ? 'Tarjeta' : 'Préstamo'}
-    </Badge>
-  )
+function termLabel(termMonths: number) {
+  return termMonths === 0 ? 'Revolving' : `${termMonths} cuota${termMonths !== 1 ? 's' : ''}`
 }
 
 // ─── Main page ─────────────────────────────────────────────────────────────────
@@ -75,6 +90,7 @@ export function Component() {
   const { formatAmount } = useUIStore()
 
   const debts = useLiveQuery(() => db.debts.orderBy('name').toArray(), [])
+  const creditCards = useLiveQuery(() => db.creditCards.orderBy('name').toArray(), [])
 
   // Dialog state
   const [debtOpen, setDebtOpen] = useState(false)
@@ -86,11 +102,20 @@ export function Component() {
   // ── Debt form ────────────────────────────────────────────────────────────────
   const debtForm = useForm<DebtValues>({
     resolver: zodResolver(debtSchema),
-    defaultValues: { type: 'loan' },
+    defaultValues: { origin: 'other', termMonths: 0, annualRate: 0, currentBalance: 0 },
   })
 
+  const watchedOrigin = debtForm.watch('origin')
+  const isOther = watchedOrigin === 'other'
+
+  // Origin items for the Select
+  const originItems = [
+    ...(creditCards?.map((c) => ({ value: `card:${c.id}`, label: c.name })) ?? []),
+    { value: 'other', label: 'Otros (banco / entidad)' },
+  ]
+
   function openCreateDebt() {
-    debtForm.reset({ type: 'loan', annualRate: 0, currentBalance: 0 })
+    debtForm.reset({ origin: 'other', termMonths: 0, annualRate: 0, currentBalance: 0 })
     setEditingDebt(null)
     setDebtOpen(true)
   }
@@ -98,10 +123,11 @@ export function Component() {
   function openEditDebt(debt: Debt) {
     debtForm.reset({
       name: debt.name,
-      type: debt.type,
+      origin: debt.creditCardId ? `card:${debt.creditCardId}` : 'other',
+      lenderName: debt.lenderName,
       currentBalance: debt.currentBalance,
       annualRate: debt.annualRate,
-      minimumPayment: debt.minimumPayment,
+      installmentAmount: debt.installmentAmount,
       termMonths: debt.termMonths,
     })
     setEditingDebt(debt)
@@ -109,10 +135,27 @@ export function Component() {
   }
 
   async function onDebtSubmit(values: DebtValues) {
+    const creditCardId = values.origin.startsWith('card:')
+      ? Number(values.origin.split(':')[1])
+      : undefined
+    const lenderName = values.origin === 'other' ? (values.lenderName?.trim() || undefined) : undefined
+    const type: Debt['type'] = creditCardId ? 'credit_card' : 'loan'
+
+    const payload = {
+      name: values.name,
+      type,
+      currentBalance: values.currentBalance,
+      annualRate: values.annualRate,
+      installmentAmount: values.installmentAmount,
+      termMonths: values.termMonths,
+      creditCardId,
+      lenderName,
+    }
+
     if (editingDebt?.id) {
-      await debtsRepo.update(editingDebt.id, values)
+      await debtsRepo.update(editingDebt.id, payload)
     } else {
-      await debtsRepo.create(values)
+      await debtsRepo.create(payload)
     }
     setDebtOpen(false)
     debtForm.reset()
@@ -144,6 +187,7 @@ export function Component() {
 
   // ── Consolidated summary ─────────────────────────────────────────────────────
   const consolidated = debts ? calcConsolidatedDebt(debts) : null
+  const cardMap = new Map(creditCards?.map((c) => [c.id!, c]) ?? [])
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -158,7 +202,7 @@ export function Component() {
         <div className="grid grid-cols-3 gap-3">
           {[
             { label: 'Deuda total', value: consolidated.totalBalance, color: 'text-red-500' },
-            { label: 'Pago mínimo', value: consolidated.totalMinimumPayment, color: 'text-foreground' },
+            { label: 'Cuota total', value: consolidated.totalInstallmentAmount, color: 'text-foreground' },
             { label: 'Interés mensual', value: consolidated.totalMonthlyInterest, color: 'text-yellow-600 dark:text-yellow-400' },
           ].map(({ label, value, color }) => (
             <div key={label} className="rounded-lg border p-4">
@@ -176,78 +220,86 @@ export function Component() {
         <div className="rounded-lg border border-dashed py-12 text-center">
           <p className="text-sm text-muted-foreground">No hay deudas registradas.</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Usa "+ Deuda" para agregar una tarjeta de crédito o préstamo.
+            Usa "+ Deuda" para agregar una tarjeta diferida o préstamo.
           </p>
         </div>
       ) : (
         <div className="divide-y divide-border rounded-lg border">
-          {consolidated!.items.map(({ debt, monthlyInterest, monthsToPayoff }) => (
-            <div key={debt.id} className="px-4 py-4 space-y-3">
-              {/* Name + type + balance */}
-              <div className="flex items-start justify-between gap-3">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <span className="text-sm font-semibold">{debt.name}</span>
-                    <DebtTypeBadge type={debt.type} />
-                  </div>
-                  <p className={`text-xl font-bold tabular-nums ${debt.currentBalance > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
-                    {formatAmount(debt.currentBalance)}
-                  </p>
-                </div>
-                {/* Actions */}
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button size="sm" variant="outline" onClick={() => openPayment(debt)}>
-                    + Pago
-                  </Button>
-                  <button
-                    onClick={() => setHistoryDebt(debt)}
-                    className="rounded p-1.5 text-xs text-muted-foreground hover:text-foreground"
-                    title="Ver historial"
-                  >
-                    ☰
-                  </button>
-                  <button
-                    onClick={() => openEditDebt(debt)}
-                    className="rounded p-1.5 text-xs text-muted-foreground hover:text-foreground"
-                    aria-label="Editar"
-                  >
-                    ✏
-                  </button>
-                  <button
-                    onClick={() => setDeletingDebtId(debt.id!)}
-                    className="rounded p-1.5 text-xs text-muted-foreground hover:text-destructive"
-                    aria-label="Eliminar"
-                  >
-                    ✕
-                  </button>
-                </div>
-              </div>
+          {consolidated!.items.map(({ debt, monthlyInterest, monthsToPayoff }) => {
+            const cardName = debt.creditCardId ? cardMap.get(debt.creditCardId)?.name : undefined
+            const originLabel = cardName ?? debt.lenderName ?? '—'
 
-              {/* Stats row */}
-              <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs text-muted-foreground">
-                <span>
-                  Tasa: <span className="font-medium text-foreground">{debt.annualRate}% anual</span>
-                </span>
-                <span>
-                  Interés mensual:{' '}
-                  <span className="font-medium text-yellow-600 dark:text-yellow-400">
-                    {formatAmount(monthlyInterest)}
+            return (
+              <div key={debt.id} className="px-4 py-4 space-y-3">
+                {/* Name + balance + actions */}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1">
+                    <p className="text-sm font-semibold">{debt.name}</p>
+                    <p className="text-xs text-muted-foreground">{originLabel}</p>
+                    <p className={`text-xl font-bold tabular-nums ${debt.currentBalance > 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400'}`}>
+                      {formatAmount(debt.currentBalance)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button size="sm" variant="outline" onClick={() => openPayment(debt)}>
+                      + Pago
+                    </Button>
+                    <button
+                      onClick={() => setHistoryDebt(debt)}
+                      className="rounded p-1.5 text-xs text-muted-foreground hover:text-foreground"
+                      title="Ver historial"
+                    >
+                      ☰
+                    </button>
+                    <button
+                      onClick={() => openEditDebt(debt)}
+                      className="rounded p-1.5 text-xs text-muted-foreground hover:text-foreground"
+                      aria-label="Editar"
+                    >
+                      ✏
+                    </button>
+                    <button
+                      onClick={() => setDeletingDebtId(debt.id!)}
+                      className="rounded p-1.5 text-xs text-muted-foreground hover:text-destructive"
+                      aria-label="Eliminar"
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+
+                {/* Stats row */}
+                <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+                  <span>
+                    Tasa:{' '}
+                    <span className="font-medium text-foreground">{debt.annualRate}% anual</span>
                   </span>
-                </span>
-                <span>
-                  Pago mín: <span className="font-medium text-foreground">{formatAmount(debt.minimumPayment)}</span>
-                </span>
-                <span>
-                  Liquidación:{' '}
-                  <span className="font-medium text-foreground">
-                    {isFinite(monthsToPayoff)
-                      ? `${monthsToPayoff} mes${monthsToPayoff !== 1 ? 'es' : ''}`
-                      : 'Nunca (pago cubre solo interés)'}
+                  <span>
+                    Cuota:{' '}
+                    <span className="font-medium text-foreground">{formatAmount(debt.installmentAmount)}</span>
                   </span>
-                </span>
+                  <span>
+                    Plazo:{' '}
+                    <span className="font-medium text-foreground">{termLabel(debt.termMonths)}</span>
+                  </span>
+                  <span>
+                    Interés mensual:{' '}
+                    <span className="font-medium text-yellow-600 dark:text-yellow-400">
+                      {formatAmount(monthlyInterest)}
+                    </span>
+                  </span>
+                  <span>
+                    Liquidación:{' '}
+                    <span className="font-medium text-foreground">
+                      {isFinite(monthsToPayoff)
+                        ? `${monthsToPayoff} mes${monthsToPayoff !== 1 ? 'es' : ''}`
+                        : 'Solo cubre interés'}
+                    </span>
+                  </span>
+                </div>
               </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
@@ -264,32 +316,65 @@ export function Component() {
             <DialogTitle>{editingDebt ? 'Editar deuda' : 'Nueva deuda'}</DialogTitle>
           </DialogHeader>
           <form onSubmit={debtForm.handleSubmit(onDebtSubmit)} className="space-y-4">
+            {/* Description */}
             <div className="space-y-1">
-              <Label htmlFor="debt-name">Nombre</Label>
-              <Input id="debt-name" placeholder="ej. Visa Oro, Préstamo auto" {...debtForm.register('name')} />
+              <Label htmlFor="debt-name">Descripción</Label>
+              <Input
+                id="debt-name"
+                placeholder="ej. iPhone 15, Sofá, Préstamo auto"
+                {...debtForm.register('name')}
+              />
               {debtForm.formState.errors.name && (
                 <p className="text-xs text-destructive">{debtForm.formState.errors.name.message}</p>
               )}
             </div>
 
+            {/* Origin */}
             <div className="space-y-1">
-              <Label>Tipo</Label>
+              <Label>Origen</Label>
               <Select
-                items={[
-                  { value: 'loan', label: 'Préstamo' },
-                  { value: 'credit_card', label: 'Tarjeta de crédito' },
-                ]}
-                onValueChange={(v: string | null) => { if (v) debtForm.setValue('type', v as Debt['type']) }}
-                defaultValue={editingDebt?.type ?? 'loan'}
+                items={originItems}
+                onValueChange={(v: string | null) => {
+                  if (v) {
+                    debtForm.setValue('origin', v)
+                    if (v !== 'other') debtForm.setValue('lenderName', '')
+                  }
+                }}
+                defaultValue={editingDebt
+                  ? (editingDebt.creditCardId ? `card:${editingDebt.creditCardId}` : 'other')
+                  : 'other'}
               >
-                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecciona tarjeta o entidad" />
+                </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="loan">Préstamo</SelectItem>
-                  <SelectItem value="credit_card">Tarjeta de crédito</SelectItem>
+                  {creditCards?.map((c) => (
+                    <SelectItem key={c.id} value={`card:${c.id}`}>{c.name}</SelectItem>
+                  ))}
+                  <SelectItem value="other">Otros (banco / entidad)</SelectItem>
                 </SelectContent>
               </Select>
+              {debtForm.formState.errors.origin && (
+                <p className="text-xs text-destructive">{debtForm.formState.errors.origin.message}</p>
+              )}
             </div>
 
+            {/* Lender name — only when "Otros" is selected */}
+            {isOther && (
+              <div className="space-y-1">
+                <Label htmlFor="lender-name">Nombre de la entidad</Label>
+                <Input
+                  id="lender-name"
+                  placeholder="ej. Bancolombia, Nequi, Familiar"
+                  {...debtForm.register('lenderName')}
+                />
+                {debtForm.formState.errors.lenderName && (
+                  <p className="text-xs text-destructive">{debtForm.formState.errors.lenderName.message}</p>
+                )}
+              </div>
+            )}
+
+            {/* Balance + Rate */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
                 <Label htmlFor="debt-balance">Saldo actual</Label>
@@ -318,30 +403,40 @@ export function Component() {
               </div>
             </div>
 
+            {/* Installment + Term */}
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-1">
-                <Label htmlFor="debt-min">Pago mínimo</Label>
+                <Label htmlFor="debt-installment">Valor de cuota</Label>
                 <Input
-                  id="debt-min"
+                  id="debt-installment"
                   type="number"
                   step="0.01"
                   min="0.01"
                   placeholder="0.00"
-                  {...debtForm.register('minimumPayment', { valueAsNumber: true })}
+                  {...debtForm.register('installmentAmount', { valueAsNumber: true })}
                 />
-                {debtForm.formState.errors.minimumPayment && (
-                  <p className="text-xs text-destructive">{debtForm.formState.errors.minimumPayment.message}</p>
+                {debtForm.formState.errors.installmentAmount && (
+                  <p className="text-xs text-destructive">{debtForm.formState.errors.installmentAmount.message}</p>
                 )}
               </div>
               <div className="space-y-1">
-                <Label htmlFor="debt-term">Plazo (meses, opcional)</Label>
-                <Input
-                  id="debt-term"
-                  type="number"
-                  min="1"
-                  placeholder="—"
-                  {...debtForm.register('termMonths', { valueAsNumber: true })}
-                />
+                <Label>Diferido</Label>
+                <Select
+                  items={TERM_OPTIONS}
+                  onValueChange={(v: string | null) => {
+                    if (v !== null) debtForm.setValue('termMonths', Number(v))
+                  }}
+                  defaultValue={String(editingDebt?.termMonths ?? 0)}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {TERM_OPTIONS.map(({ value, label }) => (
+                      <SelectItem key={value} value={value}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
 
@@ -415,7 +510,6 @@ export function Component() {
             <AlertDialogAction
               onClick={async () => {
                 if (deletingDebtId) {
-                  // Delete all payments first
                   const payments = await db.debtPayments.where('debtId').equals(deletingDebtId).toArray()
                   await db.debtPayments.bulkDelete(payments.map((p) => p.id!))
                   await debtsRepo.remove(deletingDebtId)
