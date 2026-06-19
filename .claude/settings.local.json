@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Test-Path *)",
+      "PowerShell(Get-ChildItem \"D:\\\\AppContabilidad\" -Force -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName + \" | IsDir: \" + $_.PSIsContainer })",
+      "PowerShell(Get-ChildItem \"D:\\\\AppContabilidad\\\\.claude\" -Force -Recurse | ForEach-Object { $_.FullName })",
+      "PowerShell(npm *)",
+      "PowerShell(New-Item *)"
+    ]
+  }
+}
