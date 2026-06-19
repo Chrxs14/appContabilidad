@@ -1,5 +1,6 @@
 import { db } from './db'
 import type { Transaction, TransactionType } from './types'
+import { getBillingPeriod } from '@/domain/billing-cycle'
 
 export interface TransactionFilters {
   type?: TransactionType
@@ -50,11 +51,40 @@ export const transactionsRepo = {
       .toArray()
   },
 
-  create(data: Omit<Transaction, 'id' | 'createdAt'>) {
-    return db.transactions.add({ ...data, createdAt: new Date() })
+  async create(data: Omit<Transaction, 'id' | 'createdAt' | 'billingYear' | 'billingMonth'>) {
+    let billingYear = data.date.getFullYear()
+    let billingMonth = data.date.getMonth() + 1
+
+    if (data.creditCardId) {
+      const card = await db.creditCards.get(data.creditCardId)
+      if (card) {
+        ;({ billingYear, billingMonth } = getBillingPeriod(data.date, card.cutDay))
+      }
+    }
+
+    return db.transactions.add({ ...data, billingYear, billingMonth, createdAt: new Date() })
   },
 
-  update(id: number, data: Partial<Omit<Transaction, 'id' | 'createdAt'>>) {
+  async update(id: number, data: Partial<Omit<Transaction, 'id' | 'createdAt'>>) {
+    if (data.date !== undefined || data.creditCardId !== undefined) {
+      const existing = await db.transactions.get(id)
+      if (existing) {
+        const txDate = data.date ?? existing.date
+        const cardId = 'creditCardId' in data ? data.creditCardId : existing.creditCardId
+
+        let billingYear = txDate.getFullYear()
+        let billingMonth = txDate.getMonth() + 1
+
+        if (cardId) {
+          const card = await db.creditCards.get(cardId)
+          if (card) {
+            ;({ billingYear, billingMonth } = getBillingPeriod(txDate, card.cutDay))
+          }
+        }
+
+        return db.transactions.update(id, { ...data, billingYear, billingMonth })
+      }
+    }
     return db.transactions.update(id, data)
   },
 

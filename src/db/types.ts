@@ -44,6 +44,8 @@ export interface Transaction {
   creditCardId?: number
   note?: string
   isRecurring: boolean
+  billingYear: number      // period this tx counts toward (may differ from date for credit cards)
+  billingMonth: number     // 1–12
   createdAt: Date
 }
 

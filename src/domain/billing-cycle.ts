@@ -63,3 +63,29 @@ export function getCurrentBillingCycle(
 
   return { cycleStart, cycleEnd, paymentDeadline, daysUntilCut, daysUntilPayment }
 }
+
+/**
+ * Given a transaction date and a card's cut day, return the billing period
+ * (year + 1-indexed month) the transaction belongs to.
+ *
+ * Rule: if the transaction day is on or before the cut day of that calendar
+ * month, it belongs to that month's billing cycle. If it's after the cut day
+ * it belongs to the NEXT month's cycle (the card statement that closes next month).
+ */
+export function getBillingPeriod(
+  txDate: Date,
+  cutDay: number,
+): { billingYear: number; billingMonth: number } {
+  const year = txDate.getFullYear()
+  const month = txDate.getMonth() // 0-11
+  const day = txDate.getDate()
+
+  const lastDayOfMonth = new Date(year, month + 1, 0).getDate()
+  const effectiveCutDay = Math.min(cutDay, lastDayOfMonth)
+
+  if (day <= effectiveCutDay) {
+    return { billingYear: year, billingMonth: month + 1 }
+  }
+  const next = new Date(year, month + 1, 1)
+  return { billingYear: next.getFullYear(), billingMonth: next.getMonth() + 1 }
+}

@@ -1,7 +1,7 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
 import { useUIStore } from '@/store/uiStore'
-import { formatMonthYear, periodToRange } from '@/lib/dates'
+import { formatMonthYear } from '@/lib/dates'
 import { calcPeriodSummary } from '@/domain/summaries'
 import { calcConsolidatedDebt } from '@/domain/debt'
 import { PeriodSelector } from '@/features/transactions/components/PeriodSelector'
@@ -32,11 +32,11 @@ function MetricCard({
 
 export function Component() {
   const { activePeriod, formatAmount } = useUIStore()
-  const { from, to } = periodToRange(activePeriod)
+  const { year, month } = activePeriod
 
   const periodTxs = useLiveQuery(
-    () => db.transactions.where('date').between(from, to, true, true).toArray(),
-    [from.getTime(), to.getTime()],
+    () => db.transactions.where('[billingYear+billingMonth]').equals([year, month]).toArray(),
+    [year, month],
   )
   const debts = useLiveQuery(() => db.debts.toArray(), [])
 

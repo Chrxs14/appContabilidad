@@ -8,6 +8,7 @@ import type {
   Debt,
   DebtPayment,
 } from './types'
+import { getBillingPeriod } from '@/domain/billing-cycle'
 
 class AppDB extends Dexie {
   accounts!: Table<Account, number>
@@ -38,6 +39,27 @@ class AppDB extends Dexie {
       creditCards: '++id, name, cutDay',
       categories:  '++id, name, type, parentId, isDefault',
       debts:       '++id, name, type, creditCardId',
+    })
+
+    // v3 — add billingYear+billingMonth compound index; backfill existing rows
+    this.version(3).stores({
+      transactions: '++id, type, date, categoryId, accountId, creditCardId, [billingYear+billingMonth]',
+    }).upgrade(async (trans) => {
+      const cards: CreditCard[] = await trans.table('creditCards').toArray()
+      const cardMap = new Map(cards.map((c) => [c.id!, c]))
+
+      await trans.table('transactions').toCollection().modify((tx: Record<string, unknown>) => {
+        const txDate = new Date(tx['date'] as Date)
+        const cardId = tx['creditCardId'] as number | undefined
+        const card = cardId !== undefined ? cardMap.get(cardId) : undefined
+
+        const { billingYear, billingMonth } = card
+          ? getBillingPeriod(txDate, card.cutDay)
+          : { billingYear: txDate.getFullYear(), billingMonth: txDate.getMonth() + 1 }
+
+        tx['billingYear'] = billingYear
+        tx['billingMonth'] = billingMonth
+      })
     })
   }
 }

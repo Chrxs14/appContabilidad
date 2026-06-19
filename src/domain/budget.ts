@@ -33,8 +33,8 @@ export function calcBudgetProgress(
       (tx) =>
         tx.type === 'expense' &&
         tx.categoryId === budget.categoryId &&
-        tx.date.getFullYear() === budget.year &&
-        tx.date.getMonth() + 1 === budget.month,
+        tx.billingYear === budget.year &&
+        tx.billingMonth === budget.month,
     )
     .reduce((sum, tx) => sum + tx.amount, 0)
 

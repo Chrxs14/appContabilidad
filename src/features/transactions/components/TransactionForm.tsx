@@ -1,9 +1,12 @@
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { useLiveQuery } from 'dexie-react-hooks'
+import { format } from 'date-fns'
+import { es } from 'date-fns/locale'
 import { db, transactionsRepo } from '@/db'
+import { getBillingPeriod } from '@/domain/billing-cycle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -84,6 +87,9 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
   })
 
   const type = watch('type')
+  const watchedCreditCardId = watch('creditCardId')
+  const watchedDate = watch('date')
+
   const categories = useLiveQuery(
     () => db.categories.where('type').equals(type).sortBy('name'),
     [type],
@@ -100,6 +106,19 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
   useEffect(() => {
     if (type === 'income') setValue('creditCardId', undefined)
   }, [type, setValue])
+
+  const billingHint = useMemo(() => {
+    if (!watchedCreditCardId || !watchedDate) return null
+    const card = creditCards?.find((c) => c.id === watchedCreditCardId)
+    if (!card) return null
+    const txDate = new Date(watchedDate + 'T12:00:00')
+    const { billingYear, billingMonth } = getBillingPeriod(txDate, card.cutDay)
+    if (billingYear !== txDate.getFullYear() || billingMonth !== txDate.getMonth() + 1) {
+      const label = format(new Date(billingYear, billingMonth - 1, 1), 'MMMM yyyy', { locale: es })
+      return `Se reflejará en ${label} (corte: día ${card.cutDay})`
+    }
+    return null
+  }, [watchedCreditCardId, watchedDate, creditCards])
 
   async function onSubmit(values: FormValues) {
     const payload = {
@@ -240,6 +259,9 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
         </Select>
         {errors.accountId && (
           <p className="text-destructive text-xs">{errors.accountId.message}</p>
+        )}
+        {billingHint && (
+          <p className="text-xs text-amber-600 dark:text-amber-400">⚠ {billingHint}</p>
         )}
       </div>
 

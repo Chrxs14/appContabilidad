@@ -1,19 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
-import { periodToRange } from '@/lib/dates'
 import { useUIStore } from '@/store/uiStore'
 import type { TransactionFilters } from '@/db/transactions.repo'
 
-/** All transactions in the active period, ordered by date descending. */
+/** All transactions in the active billing period, ordered by date descending. */
 export function usePeriodTransactions(extraFilters?: Partial<TransactionFilters>) {
   const { activePeriod } = useUIStore()
-  const { from, to } = periodToRange(activePeriod)
+  const { year, month } = activePeriod
 
   return useLiveQuery(
     () =>
       db.transactions
-        .where('date')
-        .between(from, to, true, true)
+        .where('[billingYear+billingMonth]')
+        .equals([year, month])
         .toArray()
         .then((txs) => {
           let result = txs
@@ -30,7 +29,7 @@ export function usePeriodTransactions(extraFilters?: Partial<TransactionFilters>
           }
           return result.sort((a, b) => b.date.getTime() - a.date.getTime())
         }),
-    [from.getTime(), to.getTime(), JSON.stringify(extraFilters)],
+    [year, month, JSON.stringify(extraFilters)],
   )
 }
 

@@ -3,16 +3,15 @@ import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recha
 import { useLiveQuery } from 'dexie-react-hooks'
 import { db } from '@/db'
 import { useUIStore } from '@/store/uiStore'
-import { periodToRange } from '@/lib/dates'
 import { calcExpenseByCategory } from '@/domain/summaries'
 
 export function SpendingDonut() {
   const { activePeriod, formatAmount } = useUIStore()
-  const { from, to } = periodToRange(activePeriod)
+  const { year, month } = activePeriod
 
   const transactions = useLiveQuery(
-    () => db.transactions.where('date').between(from, to, true, true).toArray(),
-    [from.getTime(), to.getTime()],
+    () => db.transactions.where('[billingYear+billingMonth]').equals([year, month]).toArray(),
+    [year, month],
   )
   const categories = useLiveQuery(() => db.categories.toArray(), [])
 

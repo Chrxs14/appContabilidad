@@ -35,7 +35,7 @@ export function MonthlyChart({ months = 6 }: { months?: number }) {
     if (!allTransactions) return []
     return getPreviousPeriods(activePeriod, months).map(({ month, year }) => {
       const periodTxs = allTransactions.filter(
-        (tx) => tx.date.getFullYear() === year && tx.date.getMonth() + 1 === month,
+        (tx) => tx.billingYear === year && tx.billingMonth === month,
       )
       const income = periodTxs.filter((t) => t.type === 'income').reduce((s, t) => s + t.amount, 0)
       const expense = periodTxs.filter((t) => t.type === 'expense').reduce((s, t) => s + t.amount, 0)

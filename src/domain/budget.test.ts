@@ -23,6 +23,8 @@ const makeTx = (
   amount,
   date,
   categoryId,
+  billingYear: date.getFullYear(),
+  billingMonth: date.getMonth() + 1,
   isRecurring: false,
   createdAt: new Date(),
 })
