@@ -45,12 +45,19 @@ export function CardDetail({ card }: Props) {
     [card.id, cycle.cycleStart.getTime(), cycle.cycleEnd.getTime()],
   )
 
+  const linkedDebts = useLiveQuery(
+    () => db.debts.where('creditCardId').equals(card.id!).toArray(),
+    [card.id],
+  )
+
   const categories = useLiveQuery(() => db.categories.toArray(), [])
   const categoryMap = new Map(categories?.map((c) => [c.id!, c]) ?? [])
 
   const totalCharges = charges?.reduce((sum, tx) => sum + tx.amount, 0) ?? 0
-  const usagePercent = card.creditLimit > 0 ? (totalCharges / card.creditLimit) * 100 : 0
-  const available = card.creditLimit - totalCharges
+  const debtBalance = linkedDebts?.reduce((sum, d) => sum + d.currentBalance, 0) ?? 0
+  const totalUsed = totalCharges + debtBalance
+  const usagePercent = card.creditLimit > 0 ? (totalUsed / card.creditLimit) * 100 : 0
+  const available = card.creditLimit - totalUsed
 
   const barColor =
     usagePercent >= 100
@@ -87,9 +94,9 @@ export function CardDetail({ card }: Props) {
       {/* Usage bar */}
       <div className="space-y-2">
         <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">Saldo estimado del ciclo</span>
+          <span className="text-muted-foreground">Cupo ocupado</span>
           <span className="font-semibold">
-            {formatAmount(totalCharges)} / {formatAmount(card.creditLimit)}
+            {formatAmount(totalUsed)} / {formatAmount(card.creditLimit)}
           </span>
         </div>
         <div className="h-2.5 rounded-full bg-muted overflow-hidden">
@@ -102,6 +109,30 @@ export function CardDetail({ card }: Props) {
           <span>{usagePercent.toFixed(1)}% utilizado</span>
           <span>Disponible: {formatAmount(Math.max(0, available))}</span>
         </div>
+
+        {/* Breakdown when there are linked debts */}
+        {debtBalance > 0 && (
+          <div className="rounded-md border bg-muted/40 px-3 py-2 text-xs space-y-1">
+            <div className="flex justify-between text-muted-foreground">
+              <span>Cargos del ciclo actual</span>
+              <span className="tabular-nums">{formatAmount(totalCharges)}</span>
+            </div>
+            <div className="flex justify-between text-orange-600 dark:text-orange-400 font-medium">
+              <span>Deudas diferidas vinculadas</span>
+              <span className="tabular-nums">{formatAmount(debtBalance)}</span>
+            </div>
+            {linkedDebts && linkedDebts.length > 0 && (
+              <div className="pt-0.5 space-y-0.5">
+                {linkedDebts.map((d) => (
+                  <div key={d.id} className="flex justify-between text-muted-foreground pl-2">
+                    <span className="truncate">{d.name}</span>
+                    <span className="tabular-nums ml-2 shrink-0">{formatAmount(d.currentBalance)}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Limit alerts */}
         {usagePercent >= 100 && (

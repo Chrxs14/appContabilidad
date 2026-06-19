@@ -24,7 +24,9 @@ import { CardDetail } from './components/CardDetail'
 interface CardRow {
   card: CreditCard
   cycle: BillingCycle
-  balance: number
+  cycleCharges: number      // spend in current billing cycle
+  debtBalance: number       // linked debt balances (occupy the limit)
+  totalUsed: number
   usagePercent: number
 }
 
@@ -52,6 +54,7 @@ export function Component() {
 
   const cards = useLiveQuery(() => db.creditCards.orderBy('name').toArray(), [])
   const allTransactions = useLiveQuery(() => db.transactions.toArray(), [])
+  const allDebts = useLiveQuery(() => db.debts.toArray(), [])
 
   const [formOpen, setFormOpen] = useState(false)
   const [editing, setEditing] = useState<CreditCard | null>(null)
@@ -68,9 +71,13 @@ export function Component() {
           tx.date >= cycle.cycleStart &&
           tx.date <= cycle.cycleEnd,
       )
-      const balance = charges.reduce((sum, tx) => sum + tx.amount, 0)
-      const usagePercent = card.creditLimit > 0 ? (balance / card.creditLimit) * 100 : 0
-      return { card, cycle, balance, usagePercent }
+      const cycleCharges = charges.reduce((sum, tx) => sum + tx.amount, 0)
+      const debtBalance = (allDebts ?? [])
+        .filter((d) => d.creditCardId === card.id && d.currentBalance > 0)
+        .reduce((sum, d) => sum + d.currentBalance, 0)
+      const totalUsed = cycleCharges + debtBalance
+      const usagePercent = card.creditLimit > 0 ? (totalUsed / card.creditLimit) * 100 : 0
+      return { card, cycle, cycleCharges, debtBalance, totalUsed, usagePercent }
     })
     .sort((a, b) => a.cycle.daysUntilCut - b.cycle.daysUntilCut)
 
@@ -110,7 +117,7 @@ export function Component() {
       {/* Card grid — sorted by urgency */}
       {rows.length > 0 && (
         <div className="grid gap-4 sm:grid-cols-2">
-          {rows.map(({ card, cycle, balance, usagePercent }) => {
+          {rows.map(({ card, cycle, cycleCharges, debtBalance, totalUsed, usagePercent }) => {
             const urgencyClass =
               cycle.daysUntilCut <= 3
                 ? 'text-red-500'
@@ -149,14 +156,27 @@ export function Component() {
                 {/* Balance + usage bar */}
                 <div className="space-y-1.5">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Saldo estimado</span>
-                    <span className="font-medium">{formatAmount(balance)}</span>
+                    <span className="text-muted-foreground">Cupo ocupado</span>
+                    <span className="font-medium">{formatAmount(totalUsed)}</span>
                   </div>
                   <UsageBar percent={usagePercent} />
                   <div className="flex justify-between text-xs text-muted-foreground">
                     <span>{usagePercent.toFixed(1)}%</span>
                     <span>Límite: {formatAmount(card.creditLimit)}</span>
                   </div>
+                  {/* Breakdown when there are linked debts */}
+                  {debtBalance > 0 && (
+                    <div className="rounded-md bg-muted/60 px-2.5 py-1.5 text-[11px] text-muted-foreground space-y-0.5">
+                      <div className="flex justify-between">
+                        <span>Cargos del ciclo</span>
+                        <span className="tabular-nums">{formatAmount(cycleCharges)}</span>
+                      </div>
+                      <div className="flex justify-between text-orange-600 dark:text-orange-400">
+                        <span>Deudas diferidas</span>
+                        <span className="tabular-nums">{formatAmount(debtBalance)}</span>
+                      </div>
+                    </div>
+                  )}
                 </div>
 
                 {/* Key dates */}
