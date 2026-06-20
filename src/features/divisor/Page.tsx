@@ -114,14 +114,14 @@ export function Component() {
 
   return (
     <div className="max-w-2xl space-y-5">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold">Divisor de facturas</h1>
           <p className="mt-0.5 text-sm text-muted-foreground">
             Divide cuentas grupales y calcula cuánto paga cada persona.
           </p>
         </div>
-        <Button onClick={() => setShowWizard(true)}>+ Nueva división</Button>
+        <Button onClick={() => setShowWizard(true)} className="shrink-0">+ Nueva división</Button>
       </div>
 
       {!splits || !allItems ? (

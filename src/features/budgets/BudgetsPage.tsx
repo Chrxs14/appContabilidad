@@ -129,7 +129,7 @@ export function Component() {
   return (
     <div className="max-w-2xl space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Presupuestos</h1>
         <div className="flex gap-2">
           {(!budgets || budgets.length === 0) && (
@@ -205,7 +205,7 @@ export function Component() {
                       style={{ background: category.color }}
                     />
                   )}
-                  <span className="flex-1 text-sm font-medium">{category?.name ?? '—'}</span>
+                  <span className="flex-1 min-w-0 truncate text-sm font-medium">{category?.name ?? '—'}</span>
                   <StatusBadge status={status} />
                   <span className="text-xs tabular-nums text-muted-foreground">
                     {formatAmount(spent)} / {formatAmount(limit)}

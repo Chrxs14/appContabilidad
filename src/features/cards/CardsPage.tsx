@@ -99,7 +99,7 @@ export function Component() {
   return (
     <div className="max-w-4xl space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
         <h1 className="text-2xl font-semibold">Tarjetas de crédito</h1>
         <Button onClick={openNew}>+ Agregar tarjeta</Button>
       </div>
