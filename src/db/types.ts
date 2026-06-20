@@ -90,3 +90,31 @@ export interface Reimbursement {
   incomeTransactionId?: number
   createdAt: Date
 }
+
+export type SplitMode = 'equal' | 'by_consumption'
+export type ServiceMode = 'percent' | 'fixed'
+
+export interface BillSplit {
+  id?: number
+  title: string
+  date: Date
+  people: string[]
+  hasIVA: boolean
+  hasServiceCharge: boolean
+  serviceMode: ServiceMode
+  serviceValue: number        // percent → 10 = 10 %; fixed → monto exacto
+  splitMode: SplitMode
+  receiptImage?: Blob         // foto del ticket, Fase B
+  linkedTransactionId?: number
+  createdAt: Date
+}
+
+export interface BillItem {
+  id?: number
+  billSplitId: number
+  name: string
+  unitPrice: number
+  quantity: number
+  assignedTo: string[]        // [] = todos los del grupo
+  createdAt: Date
+}

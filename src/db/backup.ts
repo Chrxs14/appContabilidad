@@ -84,6 +84,31 @@ const debtPaymentSchema = z.object({
   createdAt: z.coerce.date(),
 })
 
+const billSplitSchema = z.object({
+  id: z.number().optional(),
+  title: z.string(),
+  date: z.coerce.date(),
+  people: z.array(z.string()),
+  hasIVA: z.boolean(),
+  hasServiceCharge: z.boolean(),
+  serviceMode: z.enum(['percent', 'fixed']),
+  serviceValue: z.number(),
+  splitMode: z.enum(['equal', 'by_consumption']),
+  linkedTransactionId: z.number().optional(),
+  createdAt: z.coerce.date(),
+  // receiptImage (Blob) is excluded from JSON backup
+})
+
+const billItemSchema = z.object({
+  id: z.number().optional(),
+  billSplitId: z.number(),
+  name: z.string(),
+  unitPrice: z.number(),
+  quantity: z.number(),
+  assignedTo: z.array(z.string()),
+  createdAt: z.coerce.date(),
+})
+
 const reimbursementSchema = z.object({
   id: z.number().optional(),
   transactionId: z.number(),
@@ -107,6 +132,8 @@ const backupSchema = z.object({
     debts:            z.array(debtSchema),
     debtPayments:     z.array(debtPaymentSchema),
     reimbursements:   z.array(reimbursementSchema).default([]),
+    billSplits:       z.array(billSplitSchema).default([]),
+    billItems:        z.array(billItemSchema).default([]),
   }),
 })
 
@@ -115,7 +142,7 @@ type BackupFile = z.infer<typeof backupSchema>
 // ── Export ────────────────────────────────────────────────────────────────────
 
 export async function exportBackup(): Promise<void> {
-  const [accounts, creditCards, categories, transactions, budgets, debts, debtPayments, reimbursements] =
+  const [accounts, creditCards, categories, transactions, budgets, debts, debtPayments, reimbursements, billSplits, billItems] =
     await Promise.all([
       db.accounts.toArray(),
       db.creditCards.toArray(),
@@ -125,12 +152,14 @@ export async function exportBackup(): Promise<void> {
       db.debts.toArray(),
       db.debtPayments.toArray(),
       db.reimbursements.toArray(),
+      db.billSplits.toArray(),
+      db.billItems.toArray(),
     ])
 
   const backup: BackupFile = {
     version: BACKUP_VERSION,
     exportedAt: new Date().toISOString(),
-    data: { accounts, creditCards, categories, transactions, budgets, debts, debtPayments, reimbursements },
+    data: { accounts, creditCards, categories, transactions, budgets, debts, debtPayments, reimbursements, billSplits, billItems },
   }
 
   const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' })
@@ -159,7 +188,7 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
 
   await db.transaction(
     'rw',
-    [db.accounts, db.creditCards, db.categories, db.transactions, db.budgets, db.debts, db.debtPayments, db.reimbursements],
+    [db.accounts, db.creditCards, db.categories, db.transactions, db.budgets, db.debts, db.debtPayments, db.reimbursements, db.billSplits, db.billItems],
     async () => {
       if (mode === 'replace') {
         await Promise.all([
@@ -171,6 +200,8 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
           db.debts.clear(),
           db.debtPayments.clear(),
           db.reimbursements.clear(),
+          db.billSplits.clear(),
+          db.billItems.clear(),
         ])
       }
 
@@ -204,6 +235,8 @@ export async function importBackup(file: File, mode: ImportMode = 'replace'): Pr
       await db.debts.bulkPut(debts as Parameters<typeof db.debts.bulkPut>[0])
       await db.debtPayments.bulkPut(data.debtPayments)
       await db.reimbursements.bulkPut(data.reimbursements)
+      await db.billSplits.bulkPut(data.billSplits as Parameters<typeof db.billSplits.bulkPut>[0])
+      await db.billItems.bulkPut(data.billItems)
     },
   )
 }

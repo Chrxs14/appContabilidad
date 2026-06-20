@@ -9,6 +9,7 @@ const NAV_ITEMS = [
   { to: '/presupuestos', label: 'Presupuestos' },
   { to: '/deudas', label: 'Deudas' },
   { to: '/cobros', label: 'Cobros' },
+  { to: '/divisor', label: 'Divisor' },
   { to: '/categorias', label: 'Categorías' },
   { to: '/ajustes', label: 'Ajustes' },
 ]

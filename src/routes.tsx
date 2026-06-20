@@ -31,6 +31,10 @@ const router = createBrowserRouter([
         lazy: () => import('./features/cobros/Page'),
       },
       {
+        path: 'divisor',
+        lazy: () => import('./features/divisor/Page'),
+      },
+      {
         path: 'categorias',
         lazy: () => import('./features/categories/CategoriesPage'),
       },
