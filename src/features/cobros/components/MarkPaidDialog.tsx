@@ -34,19 +34,19 @@ export function MarkPaidDialog({ reimbursement, open, onClose }: Props) {
   const [categoryId, setCategoryId] = useState<number | undefined>()
   const [submitting, setSubmitting] = useState(false)
 
-  const transaction = useLiveQuery(
-    () =>
-      reimbursement ? db.transactions.get(reimbursement.transactionId) : Promise.resolve(undefined),
-    [reimbursement?.transactionId],
+  const txData = useLiveQuery(
+    async () => {
+      if (!reimbursement) return null
+      const tx = await db.transactions.get(reimbursement.transactionId)
+      if (!tx) return null
+      const cat = await db.categories.get(tx.categoryId)
+      return { transaction: tx, txCategory: cat }
+    },
+    [reimbursement?.id],
   )
 
-  const txCategory = useLiveQuery(
-    () =>
-      transaction?.categoryId
-        ? db.categories.get(transaction.categoryId)
-        : Promise.resolve(undefined),
-    [transaction?.categoryId],
-  )
+  const transaction = txData?.transaction
+  const txCategory = txData?.txCategory
 
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray(), [])
   const incomeCategories = useLiveQuery(
