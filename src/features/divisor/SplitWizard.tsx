@@ -1,7 +1,7 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { billSplitsRepo, billItemsRepo } from '@/db'
 import type { SplitMode, ServiceMode } from '@/db/types'
-import type { SplitInput } from '@/domain/bill-split'
+import { splitBill, type SplitInput } from '@/domain/bill-split'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -10,6 +10,7 @@ import { ItemsEditor, type DraftItem } from './components/ItemsEditor'
 import { TaxPanel } from './components/TaxPanel'
 import { ItemAssigner } from './components/ItemAssigner'
 import { SplitResult } from './components/SplitResult'
+import { GenerateCobrosDialog } from './components/GenerateCobrosDialog'
 
 const STEPS = [
   'Datos generales',
@@ -48,8 +49,10 @@ export function SplitWizard({ onDone, onCancel }: Props) {
   // ── step 4 ────────────────────────────────────────────────────────────────
   const [splitMode, setSplitMode] = useState<SplitMode>('equal')
 
-  // ── save ──────────────────────────────────────────────────────────────────
+  // ── post-save ─────────────────────────────────────────────────────────────
   const [saving, setSaving] = useState(false)
+  const [savedSplitId, setSavedSplitId] = useState<number | null>(null)
+  const [showCobrosDialog, setShowCobrosDialog] = useState(false)
 
   // ── validation ────────────────────────────────────────────────────────────
   function canAdvance(): boolean {
@@ -88,6 +91,7 @@ export function SplitWizard({ onDone, onCancel }: Props) {
   }
 
   const subtotal = items.reduce((s, i) => s + i.unitPrice * i.quantity, 0)
+  const splitResult = useMemo(() => splitBill(splitInput), [splitInput])
 
   // ── save ──────────────────────────────────────────────────────────────────
   async function handleSave() {
@@ -109,7 +113,7 @@ export function SplitWizard({ onDone, onCancel }: Props) {
           name, unitPrice, quantity, assignedTo,
         })),
       )
-      onDone()
+      setSavedSplitId(splitId)
     } finally {
       setSaving(false)
     }
@@ -258,8 +262,48 @@ export function SplitWizard({ onDone, onCancel }: Props) {
       )}
 
       {/* ── Step 4: Resultado ─────────────────────────────────────────── */}
-      {step === 4 && (
+      {step === 4 && savedSplitId === null && (
         <SplitResult input={splitInput} onSave={handleSave} saving={saving} />
+      )}
+
+      {/* ── Post-guardado ─────────────────────────────────────────────── */}
+      {step === 4 && savedSplitId !== null && (
+        <div className="space-y-4">
+          <div className="rounded-lg border border-green-300 bg-green-50 dark:border-green-800 dark:bg-green-950/30 px-4 py-4 text-center">
+            <p className="font-semibold text-green-700 dark:text-green-400">División guardada</p>
+            <p className="mt-0.5 text-xs text-muted-foreground">
+              Puedes ver el historial en la sección Divisor.
+            </p>
+          </div>
+
+          {isGrouped && people.length > 0 && (
+            <Button
+              variant="outline"
+              className="w-full"
+              onClick={() => setShowCobrosDialog(true)}
+            >
+              Generar cobros → ir a /cobros
+            </Button>
+          )}
+
+          <Button className="w-full" onClick={onDone}>
+            Ver historial
+          </Button>
+
+          {showCobrosDialog && (
+            <GenerateCobrosDialog
+              open={showCobrosDialog}
+              onClose={() => setShowCobrosDialog(false)}
+              onSuccess={onDone}
+              splitId={savedSplitId}
+              splitTitle={title}
+              splitDate={new Date(date + 'T12:00:00')}
+              people={people}
+              perPerson={splitResult.perPerson}
+              grandTotal={splitResult.grandTotal}
+            />
+          )}
+        </div>
       )}
 
       {/* Navigation */}
