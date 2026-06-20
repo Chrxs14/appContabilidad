@@ -206,7 +206,11 @@ export function GenerateCobrosDialog({
           {/* Cuenta o tarjeta */}
           <div className="space-y-1.5">
             <Label>Registrar egreso en</Label>
-            <Select value={paymentSource} onValueChange={(v: string | null) => setPaymentSource(v ?? undefined)}>
+            <Select
+              key={`src-${accounts?.length ?? 0}-${creditCards?.length ?? 0}`}
+              value={paymentSource}
+              onValueChange={(v: string | null) => setPaymentSource(v ?? undefined)}
+            >
               <SelectTrigger className="w-full">
                 <SelectValue placeholder="Selecciona cuenta o tarjeta" />
               </SelectTrigger>
@@ -229,6 +233,7 @@ export function GenerateCobrosDialog({
           <div className="space-y-1.5">
             <Label>Categoría del egreso</Label>
             <Select
+              key={`cat-${expenseCategories?.length ?? 0}`}
               value={categoryId?.toString()}
               onValueChange={(v) => setCategoryId(v ? Number(v) : undefined)}
             >

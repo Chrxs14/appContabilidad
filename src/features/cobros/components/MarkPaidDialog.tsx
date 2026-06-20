@@ -140,6 +140,7 @@ export function MarkPaidDialog({ reimbursement, open, onClose }: Props) {
                 <div className="space-y-1">
                   <Label>Cuenta destino</Label>
                   <Select
+                    key={`acc-${accounts?.length ?? 0}`}
                     value={accountId?.toString()}
                     onValueChange={(v: string | null) =>
                       setAccountId(v ? Number(v) : undefined)
@@ -162,6 +163,7 @@ export function MarkPaidDialog({ reimbursement, open, onClose }: Props) {
                 <div className="space-y-1">
                   <Label>Categoría</Label>
                   <Select
+                    key={`cat-${incomeCategories?.length ?? 0}`}
                     value={categoryId?.toString()}
                     onValueChange={(v: string | null) =>
                       setCategoryId(v ? Number(v) : undefined)
