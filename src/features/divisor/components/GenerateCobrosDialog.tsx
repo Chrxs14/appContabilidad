@@ -44,13 +44,15 @@ export function GenerateCobrosDialog({
 }: Props) {
   const { formatAmount } = useUIStore()
 
-  // "null" means "no estoy en la lista" → cobros para todos
+  // "null" → "no estoy en la lista" → cobros para todos
   const [myName, setMyName] = useState<string | null>(null)
-  const [accountId, setAccountId] = useState<number | undefined>()
+  // "account:ID" | "card:ID"
+  const [paymentSource, setPaymentSource] = useState<string | undefined>()
   const [categoryId, setCategoryId] = useState<number | undefined>()
   const [submitting, setSubmitting] = useState(false)
 
   const accounts = useLiveQuery(() => db.accounts.orderBy('name').toArray(), [])
+  const creditCards = useLiveQuery(() => db.creditCards.orderBy('name').toArray(), [])
   const expenseCategories = useLiveQuery(
     () => db.categories.where('type').equals('expense').sortBy('name'),
     [],
@@ -64,8 +66,10 @@ export function GenerateCobrosDialog({
   )
 
   useEffect(() => {
-    if (defaultAccountId && !accountId) setAccountId(defaultAccountId)
-  }, [defaultAccountId, accountId])
+    if (defaultAccountId && !paymentSource) {
+      setPaymentSource(`account:${defaultAccountId}`)
+    }
+  }, [defaultAccountId, paymentSource])
 
   useEffect(() => {
     if (expenseCategories?.length && !categoryId) setCategoryId(expenseCategories[0]?.id)
@@ -81,22 +85,26 @@ export function GenerateCobrosDialog({
 
   const personsToCharge = perPerson.filter((p) => p.name !== myName)
   const totalCobros = personsToCharge.reduce((s, p) => s + p.total, 0)
-  const canConfirm = !!accountId && !!categoryId && personsToCharge.length > 0
+  const canConfirm = !!paymentSource && !!categoryId && personsToCharge.length > 0
+
+  function parseSource(source: string): { accountId?: number; creditCardId?: number } {
+    const [kind, rawId] = source.split(':')
+    const id = Number(rawId)
+    return kind === 'card' ? { creditCardId: id } : { accountId: id }
+  }
 
   async function handleConfirm() {
-    if (!accountId || !categoryId) return
+    if (!paymentSource || !categoryId) return
     setSubmitting(true)
     try {
-      const note = splitTitle.trim()
-        ? `Divisor: ${splitTitle}`
-        : 'División de cuenta'
+      const note = splitTitle.trim() ? `Divisor: ${splitTitle}` : 'División de cuenta'
 
       const txId = await transactionsRepo.create({
         type: 'expense',
         amount: grandTotal,
         date: splitDate,
         categoryId,
-        accountId,
+        ...parseSource(paymentSource),
         note,
         isRecurring: false,
       })
@@ -195,20 +203,22 @@ export function GenerateCobrosDialog({
             </p>
           )}
 
-          {/* Cuenta destino */}
+          {/* Cuenta o tarjeta */}
           <div className="space-y-1.5">
-            <Label>Registrar egreso en cuenta</Label>
-            <Select
-              value={accountId?.toString()}
-              onValueChange={(v) => setAccountId(v ? Number(v) : undefined)}
-            >
+            <Label>Registrar egreso en</Label>
+            <Select value={paymentSource} onValueChange={(v: string | null) => setPaymentSource(v ?? undefined)}>
               <SelectTrigger className="w-full">
-                <SelectValue placeholder="Selecciona una cuenta" />
+                <SelectValue placeholder="Selecciona cuenta o tarjeta" />
               </SelectTrigger>
               <SelectContent>
                 {accounts?.map((a) => (
-                  <SelectItem key={a.id} value={String(a.id)}>
+                  <SelectItem key={`account:${a.id}`} value={`account:${a.id}`}>
                     {a.name}
+                  </SelectItem>
+                ))}
+                {creditCards?.map((c) => (
+                  <SelectItem key={`card:${c.id}`} value={`card:${c.id}`}>
+                    {c.name} (tarjeta)
                   </SelectItem>
                 ))}
               </SelectContent>
