@@ -44,9 +44,9 @@ export function ItemsEditor({ items, onChange }: Props) {
             <thead>
               <tr className="border-b text-left text-xs text-muted-foreground">
                 <th className="pb-2 pr-2 font-medium">Descripción</th>
-                <th className="pb-2 pr-2 w-16 font-medium text-center">Cant.</th>
-                <th className="pb-2 pr-2 w-28 font-medium text-right">Precio unit.</th>
-                <th className="pb-2 pr-2 w-24 font-medium text-right">Total</th>
+                <th className="pb-2 pr-2 w-12 font-medium text-center">Cant.</th>
+                <th className="pb-2 pr-2 w-20 font-medium text-right">Precio</th>
+                <th className="pb-2 pr-2 w-16 font-medium text-right">Total</th>
                 <th className="pb-2 w-6" />
               </tr>
             </thead>
@@ -69,7 +69,7 @@ export function ItemsEditor({ items, onChange }: Props) {
                       onChange={(e) =>
                         update(item.key, { quantity: Math.max(1, parseInt(e.target.value) || 1) })
                       }
-                      className="h-8 w-16 text-center text-sm"
+                      className="h-8 w-12 text-center text-sm"
                     />
                   </td>
                   <td className="py-2 pr-2">
@@ -82,7 +82,7 @@ export function ItemsEditor({ items, onChange }: Props) {
                       onChange={(e) =>
                         update(item.key, { unitPrice: parseFloat(e.target.value) || 0 })
                       }
-                      className="h-8 w-28 text-right text-sm"
+                      className="h-8 w-20 text-right text-sm"
                     />
                   </td>
                   <td className="py-2 pr-2 text-right tabular-nums">

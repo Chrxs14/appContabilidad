@@ -149,7 +149,7 @@ export function Component() {
 
       {/* Summary totals */}
       {summary && summary.items.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: 'Presupuestado', value: summary.totalLimit, color: 'text-foreground' },
             {
@@ -163,11 +163,11 @@ export function Component() {
               color: summary.totalRemaining < 0 ? 'text-red-500' : 'text-green-600 dark:text-green-400',
             },
           ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-lg border p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+            <div key={label} className="rounded-lg border p-2 sm:p-4">
+              <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wide text-muted-foreground leading-tight">
                 {label}
               </p>
-              <p className={`mt-1 text-xl font-bold tabular-nums ${color}`}>
+              <p className={`mt-1 text-base sm:text-xl font-bold tabular-nums ${color}`}>
                 {value < 0 ? '-' : ''}
                 {formatAmount(Math.abs(value))}
               </p>

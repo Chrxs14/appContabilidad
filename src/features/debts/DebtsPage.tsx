@@ -199,15 +199,15 @@ export function Component() {
 
       {/* Consolidated summary */}
       {consolidated && consolidated.items.length > 0 && (
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {[
             { label: 'Deuda total', value: consolidated.totalBalance, color: 'text-red-500' },
             { label: 'Cuota total', value: consolidated.totalInstallmentAmount, color: 'text-foreground' },
             { label: 'Interés mensual', value: consolidated.totalMonthlyInterest, color: 'text-yellow-600 dark:text-yellow-400' },
           ].map(({ label, value, color }) => (
-            <div key={label} className="rounded-lg border p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-              <p className={`mt-1 text-xl font-bold tabular-nums ${color}`}>
+            <div key={label} className="rounded-lg border p-2 sm:p-4">
+              <p className="text-[10px] sm:text-xs font-medium uppercase tracking-wide text-muted-foreground leading-tight">{label}</p>
+              <p className={`mt-1 text-base sm:text-xl font-bold tabular-nums ${color}`}>
                 {formatAmount(value)}
               </p>
             </div>

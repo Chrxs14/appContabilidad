@@ -32,13 +32,13 @@ export function PeriodSummaryCards() {
   ]
 
   return (
-    <div className="grid grid-cols-3 gap-3">
+    <div className="grid grid-cols-3 gap-2 sm:gap-3">
       {cards.map(({ label, value, color, bg }) => (
-        <div key={label} className={`rounded-lg p-4 ${bg}`}>
-          <p className="text-muted-foreground text-xs font-medium uppercase tracking-wide">
+        <div key={label} className={`rounded-lg p-2 sm:p-4 ${bg}`}>
+          <p className="text-muted-foreground text-[10px] sm:text-xs font-medium uppercase tracking-wide leading-tight">
             {label}
           </p>
-          <p className={`mt-1 text-xl font-bold tabular-nums ${color}`}>
+          <p className={`mt-1 text-base sm:text-xl font-bold tabular-nums ${color}`}>
             {value >= 0 ? '' : '-'}
             {formatAmount(Math.abs(value))}
           </p>

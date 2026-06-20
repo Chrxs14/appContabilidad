@@ -82,7 +82,7 @@ export function FilterBar({ filters, onChange }: Props) {
             onChange({ ...filters, categoryId: v ? Number(v) : undefined })
           }
         >
-          <SelectTrigger className="h-8 w-[160px] text-xs">
+          <SelectTrigger className="h-8 w-full sm:w-[160px] text-xs">
             <SelectValue placeholder="Categoría" />
           </SelectTrigger>
           <SelectContent>
@@ -113,7 +113,7 @@ export function FilterBar({ filters, onChange }: Props) {
             onChange({ ...filters, source: v || undefined })
           }
         >
-          <SelectTrigger className="h-8 w-[160px] text-xs">
+          <SelectTrigger className="h-8 w-full sm:w-[160px] text-xs">
             <SelectValue placeholder="Cuenta / Tarjeta" />
           </SelectTrigger>
           <SelectContent>
@@ -140,7 +140,7 @@ export function FilterBar({ filters, onChange }: Props) {
           value={filters.search}
           onChange={(e) => onChange({ ...filters, search: e.target.value })}
           placeholder="Buscar por nota…"
-          className="h-8 w-[180px] text-xs"
+          className="h-8 w-full sm:w-[180px] text-xs"
         />
 
         {/* Clear */}
