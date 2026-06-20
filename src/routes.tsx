@@ -27,6 +27,10 @@ const router = createBrowserRouter([
         lazy: () => import('./features/debts/DebtsPage'),
       },
       {
+        path: 'cobros',
+        lazy: () => import('./features/cobros/Page'),
+      },
+      {
         path: 'categorias',
         lazy: () => import('./features/categories/CategoriesPage'),
       },

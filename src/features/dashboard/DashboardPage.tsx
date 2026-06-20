@@ -10,6 +10,7 @@ import { UpcomingWidget } from './UpcomingWidget'
 import { BudgetAlertsWidget } from './BudgetAlertsWidget'
 import { SpendingDonut } from './SpendingDonut'
 import { MonthlyChart } from './MonthlyChart'
+import { PendingReimbursementsWidget } from '@/features/cobros/components/PendingReimbursementsWidget'
 
 function MetricCard({
   label,
@@ -132,6 +133,9 @@ export function Component() {
 
       {/* Budget alerts */}
       <BudgetAlertsWidget />
+
+      {/* Pending reimbursements — hidden when none */}
+      <PendingReimbursementsWidget />
 
       {/* Accounts distribution */}
       <AccountsPanel />

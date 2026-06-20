@@ -1,6 +1,7 @@
 import { db } from './db'
 import type { Transaction, TransactionType } from './types'
 import { getBillingPeriod } from '@/domain/billing-cycle'
+import { reimbursementsRepo } from './reimbursements.repo'
 
 export interface TransactionFilters {
   type?: TransactionType
@@ -66,6 +67,10 @@ export const transactionsRepo = {
   },
 
   async update(id: number, data: Partial<Omit<Transaction, 'id' | 'createdAt'>>) {
+    if (data.amount !== undefined) {
+      await reimbursementsRepo.updateAmount(id, data.amount)
+    }
+
     if (data.date !== undefined || data.creditCardId !== undefined) {
       const existing = await db.transactions.get(id)
       if (existing) {
@@ -88,7 +93,8 @@ export const transactionsRepo = {
     return db.transactions.update(id, data)
   },
 
-  remove(id: number) {
+  async remove(id: number) {
+    await reimbursementsRepo.removeByTransactionId(id)
     return db.transactions.delete(id)
   },
 }

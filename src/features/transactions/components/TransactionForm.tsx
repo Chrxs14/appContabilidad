@@ -5,7 +5,7 @@ import { z } from 'zod'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { db, transactionsRepo } from '@/db'
+import { db, transactionsRepo, reimbursementsRepo } from '@/db'
 import { getBillingPeriod } from '@/domain/billing-cycle'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +30,8 @@ const schema = z
     creditCardId: z.number().optional(),
     note: z.string().optional(),
     isRecurring: z.boolean(),
+    isPaidByThirdParty: z.boolean(),
+    thirdPartyName: z.string().optional(),
   })
   .refine(
     (data) => {
@@ -37,6 +39,15 @@ const schema = z
       return !!data.accountId || !!data.creditCardId
     },
     { message: 'Selecciona una cuenta o tarjeta', path: ['accountId'] },
+  )
+  .refine(
+    (data) => {
+      if (data.type === 'expense' && data.isPaidByThirdParty) {
+        return !!data.thirdPartyName && data.thirdPartyName.trim().length > 0
+      }
+      return true
+    },
+    { message: 'Ingresa el nombre de quien paga', path: ['thirdPartyName'] },
   )
 
 type FormValues = z.infer<typeof schema>
@@ -78,21 +89,35 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
           creditCardId: editing.creditCardId,
           note: editing.note ?? '',
           isRecurring: editing.isRecurring,
+          isPaidByThirdParty: false,
+          thirdPartyName: '',
         }
       : {
           type: 'expense',
           date: toDateInputValue(new Date()),
           isRecurring: false,
+          isPaidByThirdParty: false,
+          thirdPartyName: '',
         },
   })
 
   const type = watch('type')
+  const isPaidByThirdParty = watch('isPaidByThirdParty')
   const watchedCreditCardId = watch('creditCardId')
   const watchedDate = watch('date')
 
   const categories = useLiveQuery(
     () => db.categories.where('type').equals(type).sortBy('name'),
     [type],
+  )
+
+  const existingReimbursement = useLiveQuery(
+    async () => {
+      if (!editing?.id) return null
+      const r = await reimbursementsRepo.getByTransactionId(editing.id)
+      return r ?? null
+    },
+    [editing?.id],
   )
 
   // Set default account when accounts load (only for new transactions)
@@ -102,10 +127,22 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
     }
   }, [defaultAccountId, editing, setValue])
 
-  // When switching to income, clear creditCardId
+  // When switching to income, clear creditCardId and reimbursement fields
   useEffect(() => {
-    if (type === 'income') setValue('creditCardId', undefined)
+    if (type === 'income') {
+      setValue('creditCardId', undefined)
+      setValue('isPaidByThirdParty', false)
+      setValue('thirdPartyName', '')
+    }
   }, [type, setValue])
+
+  // Pre-populate reimbursement fields when editing an existing transaction
+  useEffect(() => {
+    if (!editing?.id) return
+    if (existingReimbursement === undefined) return // still loading
+    setValue('isPaidByThirdParty', existingReimbursement !== null)
+    setValue('thirdPartyName', existingReimbursement?.personName ?? '')
+  }, [editing?.id, existingReimbursement, setValue])
 
   const billingHint = useMemo(() => {
     if (!watchedCreditCardId || !watchedDate) return null
@@ -132,10 +169,34 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
       isRecurring: values.isRecurring,
     }
 
+    let txId: number
     if (editing?.id) {
       await transactionsRepo.update(editing.id, payload)
+      txId = editing.id
     } else {
-      await transactionsRepo.create(payload)
+      txId = await transactionsRepo.create(payload)
+    }
+
+    // Reimbursement lifecycle
+    const shouldReimburse = values.type === 'expense' && values.isPaidByThirdParty
+    const personName = values.thirdPartyName?.trim() ?? ''
+
+    if (shouldReimburse && personName) {
+      if (existingReimbursement) {
+        if (existingReimbursement.personName !== personName) {
+          await reimbursementsRepo.updatePersonName(existingReimbursement.id!, personName)
+        }
+        // amount is already synced by transactionsRepo.update
+      } else {
+        await reimbursementsRepo.create({
+          transactionId: txId,
+          personName,
+          amount: values.amount,
+          isPaid: false,
+        })
+      }
+    } else if (existingReimbursement) {
+      await reimbursementsRepo.remove(existingReimbursement.id!)
     }
 
     reset()
@@ -270,6 +331,34 @@ export function TransactionForm({ editing, onSuccess, onCancel }: Props) {
         <Label htmlFor="note">Nota (opcional)</Label>
         <Textarea id="note" rows={2} placeholder="Descripción…" {...register('note')} />
       </div>
+
+      {/* Third-party reimbursement — only for expenses */}
+      {type === 'expense' && (
+        <div className="space-y-2 rounded-md border border-dashed px-3 py-2.5">
+          <label className="flex cursor-pointer items-center gap-2">
+            <input
+              type="checkbox"
+              className="size-4 accent-primary"
+              {...register('isPaidByThirdParty')}
+            />
+            <span className="text-sm">Lo paga alguien más</span>
+          </label>
+          {isPaidByThirdParty && (
+            <div className="space-y-1 pl-6">
+              <Label htmlFor="thirdPartyName">¿Quién?</Label>
+              <Input
+                id="thirdPartyName"
+                placeholder="Nombre de la persona"
+                autoFocus
+                {...register('thirdPartyName')}
+              />
+              {errors.thirdPartyName && (
+                <p className="text-destructive text-xs">{errors.thirdPartyName.message}</p>
+              )}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Actions */}
       <div className="flex justify-end gap-2 pt-2">

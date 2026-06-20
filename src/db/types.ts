@@ -79,3 +79,14 @@ export interface DebtPayment {
   note?: string
   createdAt: Date
 }
+
+export interface Reimbursement {
+  id?: number
+  transactionId: number
+  personName: string
+  amount: number
+  isPaid: boolean
+  paidDate?: Date
+  incomeTransactionId?: number
+  createdAt: Date
+}

@@ -7,6 +7,7 @@ import type {
   Budget,
   Debt,
   DebtPayment,
+  Reimbursement,
 } from './types'
 import { getBillingPeriod } from '@/domain/billing-cycle'
 
@@ -18,6 +19,7 @@ class AppDB extends Dexie {
   budgets!: Table<Budget, number>
   debts!: Table<Debt, number>
   debtPayments!: Table<DebtPayment, number>
+  reimbursements!: Table<Reimbursement, number>
 
   constructor() {
     super('AppContabilidad')
@@ -73,6 +75,11 @@ class AppDB extends Dexie {
           debt['termMonths'] = 0
         }
       })
+    })
+
+    // v5 — add reimbursements table
+    this.version(5).stores({
+      reimbursements: '++id, transactionId, personName, isPaid',
     })
   }
 }

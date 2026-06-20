@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { format } from 'date-fns'
 import { es } from 'date-fns/locale'
-import { db, transactionsRepo } from '@/db'
+import { db, transactionsRepo, reimbursementsRepo } from '@/db'
 import type { Transaction } from '@/db/types'
 import { useUIStore } from '@/store/uiStore'
 import {
@@ -63,6 +63,7 @@ export function TransactionList({ filters }: Props) {
   const categories = useLiveQuery(() => db.categories.toArray(), [])
   const accounts = useLiveQuery(() => db.accounts.toArray(), [])
   const creditCards = useLiveQuery(() => db.creditCards.toArray(), [])
+  const reimbursements = useLiveQuery(() => reimbursementsRepo.getAll(), [])
 
   const [editing, setEditing] = useState<Transaction | null>(null)
   const [deleting, setDeleting] = useState<Transaction | null>(null)
@@ -83,6 +84,7 @@ export function TransactionList({ filters }: Props) {
   const categoryMap = new Map(categories?.map((c) => [c.id!, c]) ?? [])
   const accountMap = new Map(accounts?.map((a) => [a.id!, a]) ?? [])
   const cardMap = new Map(creditCards?.map((c) => [c.id!, c]) ?? [])
+  const reimbursementMap = new Map((reimbursements ?? []).map((r) => [r.transactionId, r]))
 
   const grouped = groupByDay(transactions)
 
@@ -103,6 +105,7 @@ export function TransactionList({ filters }: Props) {
                   : tx.creditCardId
                     ? cardMap.get(tx.creditCardId)?.name
                     : '—'
+                const reimbursement = reimbursementMap.get(tx.id!)
 
                 return (
                   <div
@@ -120,10 +123,25 @@ export function TransactionList({ filters }: Props) {
                       <p className="text-sm font-medium truncate">
                         {category?.name ?? 'Sin categoría'}
                       </p>
-                      <p className="text-muted-foreground text-xs truncate">
-                        {source}
-                        {tx.note ? ` · ${tx.note}` : ''}
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p className="text-muted-foreground text-xs truncate">
+                          {source}
+                          {tx.note ? ` · ${tx.note}` : ''}
+                        </p>
+                        {reimbursement && (
+                          <span
+                            className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-medium ${
+                              reimbursement.isPaid
+                                ? 'bg-muted text-muted-foreground'
+                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-400'
+                            }`}
+                          >
+                            {reimbursement.isPaid
+                              ? `✓ ${reimbursement.personName}`
+                              : `Debe: ${reimbursement.personName}`}
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Amount */}
